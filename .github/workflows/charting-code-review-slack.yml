@@ -46,7 +46,6 @@ jobs:
       - name: Look up Slack Users
         id: slack-users
         run: |
-          #!/bin/sh
           get_slack_id() {
             local github_username="$1"
             if [ -z "$github_username" ]; then
