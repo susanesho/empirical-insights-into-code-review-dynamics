@@ -1,0 +1,133 @@
+name: Code Review Notification
+
+on:
+  pull_request:
+    types: [ready_for_review, review_requested]
+
+permissions:
+  pull-requests: read
+  contents: read
+
+jobs:
+  notify-slack:
+    runs-on: ubuntu-latest
+    # Charting team's GitHub usernames, this can be modified as the team grows
+    if: contains(fromJson('["janetxinli", "susanesho", "jeffcstock", "senaga-velupillai-jane", "preston-at-jane", "melissa-jane-app", "funmionitestbot"]'), github.event.pull_request.user.login)
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get PR Details
+        id: pr-details
+        run: |
+          {
+            echo "PR_TITLE<<EOF"
+            echo "${{ github.event.pull_request.title }}"
+            echo "EOF"
+
+            echo "PR_BODY<<EOF"
+            echo "${{ github.event.pull_request.body }}"
+            echo "EOF"
+
+            echo "PR_URL=${{ github.event.pull_request.html_url }}"
+            echo "PR_AUTHOR=${{ github.event.pull_request.user.login }}"
+
+            echo "PR_REQUESTED_REVIEWERS<<EOF"
+            echo '${{ toJSON(github.event.pull_request.requested_reviewers) }}' | jq -r '.[].login' | paste -sd "," -
+            echo "EOF"
+          } >> "$GITHUB_ENV"
+
+      - name: Install jq
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y jq curl
+
+      - name: Look up Slack Users
+        id: slack-users
+        run: |
+          # Function to look up Slack ID by username using mapping
+          get_slack_id() {
+            local github_username="$1"
+            if [ -z "$github_username" ]; then
+              echo "Warning: Empty GitHub username provided" >&2
+              return 1
+            fi
+
+            # Get Slack user ID from mapping
+            local slack_user_id
+            slack_user_id=$(jq -r --arg gh_user "$github_username" '.[$gh_user] // empty' .github/workflows/config/charting-github-slack-mapping.json)
+
+            if [ -n "$slack_user_id" ]; then
+              # Format as proper Slack mention using User ID
+              echo "<@$slack_user_id>"
+            else
+              # If no mapping found, return the GitHub username
+              echo "@$github_username"
+            fi
+          }
+
+          # Get PR author's Slack mention
+          PR_AUTHOR_SLACK=$(get_slack_id "${{ github.event.pull_request.user.login }}")
+          echo "PR_AUTHOR_SLACK=$PR_AUTHOR_SLACK" >> "$GITHUB_ENV"
+
+          # Process reviewers
+          SLACK_MENTIONS=""
+          if [ -n "$PR_REQUESTED_REVIEWERS" ]; then
+            # Read the comma-separated list into an array
+            IFS=',' read -ra REVIEWERS_ARRAY <<< "$PR_REQUESTED_REVIEWERS"
+
+            for reviewer in "${REVIEWERS_ARRAY[@]}"; do
+              # Trim whitespace
+              reviewer=$(echo "$reviewer" | xargs)
+              if [ -n "$reviewer" ]; then
+                slack_mention=$(get_slack_id "$reviewer")
+                SLACK_MENTIONS="$SLACK_MENTIONS $slack_mention"
+              fi
+            done
+          fi
+
+          # Trim extra whitespace and store result
+          SLACK_MENTIONS=$(echo "$SLACK_MENTIONS" | xargs)
+          echo "SLACK_MENTIONS=$SLACK_MENTIONS" >> "$GITHUB_ENV"
+
+      - name: Get Changed Files
+        id: files
+        run: |
+          BASE_SHA="${{ github.event.pull_request.base.sha }}"
+          HEAD_SHA="${{ github.event.pull_request.head.sha }}"
+          CHANGED_FILES=$(git diff --name-only $BASE_SHA $HEAD_SHA)
+          STATS=$(git diff --shortstat $BASE_SHA $HEAD_SHA)
+          echo "CHANGED_FILES<<EOF" >> $GITHUB_ENV
+          echo "$CHANGED_FILES" >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
+          echo "DIFF_STATS=$STATS" >> $GITHUB_ENV
+
+      - name: Post to Slack
+        uses: slackapi/slack-github-action@v1.24.0
+        env:
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+          PR_MESSAGE: "${{ env.PR_AUTHOR_SLACK }} is requesting a review for PR <${{ env.PR_URL }}|#${{ github.event.pull_request.number }}> from ${{ env.SLACK_MENTIONS }}"
+          PR_DETAILS: "*Title:* ${{ env.PR_TITLE }}"
+        with:
+          channel-id: ${{ secrets.SLACK_CHANNEL_ID }}
+          payload: |
+            {
+              "text": "${{ env.PR_MESSAGE }}",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": ${{ toJSON(env.PR_MESSAGE) }}
+                  }
+                },
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": ${{ toJSON(env.PR_DETAILS) }}
+                  }
+                }
+              ]
+            }
