@@ -108,12 +108,11 @@ jobs:
         env:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
           PR_MESSAGE: "${{ env.PR_AUTHOR_SLACK }} is requesting a review for PR <${{ env.PR_URL }}|#${{ github.event.pull_request.number }}> from ${{ env.SLACK_MENTIONS }}"
-          PR_DETAILS: "*Title:* ${{ env.PR_TITLE }}"
         with:
           channel-id: ${{ secrets.SLACK_CHANNEL_ID }}
           payload: |
             {
-              "text": "${{ env.PR_MESSAGE }}",
+              "text": "${{ env.PR_MESSAGE }}\n${{ env.PR_URL }}",
               "blocks": [
                 {
                   "type": "section",
@@ -121,30 +120,8 @@ jobs:
                     "type": "mrkdwn",
                     "text": ${{ toJSON(env.PR_MESSAGE) }}
                   }
-                },
-                {
-                  "type": "section",
-                  "text": {
-                    "type": "mrkdwn",
-                    "text": ${{ toJSON(env.PR_DETAILS) }}
-                  }
-                },
-                {
-                  "type": "actions",
-                  "elements": [
-                    {
-                      "type": "button",
-                      "text": {
-                        "type": "plain_text",
-                        "text": "View Pull Request",
-                        "emoji": true
-                      },
-                      "url": ${{ toJSON(env.PR_URL) }},
-                      "style": "primary"
-                    }
-                  ]
                 }
               ],
-              "unfurl_links": false,
+              "unfurl_links": true,
               "unfurl_media": true
             }
