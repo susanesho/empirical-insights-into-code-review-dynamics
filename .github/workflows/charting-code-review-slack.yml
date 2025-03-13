@@ -46,7 +46,7 @@ jobs:
       - name: Look up Slack Users
         id: slack-users
         run: |
-          # Function to look up Slack ID by username using mapping
+          # Function to look up Slack ID by username using mapping from secret
           get_slack_id() {
             local github_username="$1"
             if [ -z "$github_username" ]; then
@@ -54,9 +54,9 @@ jobs:
               return 1
             fi
 
-            # Get Slack user ID from mapping
+            # Get Slack user ID from secret mapping
             local slack_user_id
-            slack_user_id=$(jq -r --arg gh_user "$github_username" '.[$gh_user] // empty' .github/workflows/config/charting-github-slack-mapping.json)
+            slack_user_id=$(echo '${{ secrets.CHARTING_SLACK_MAPPING }}' | jq -r --arg gh_user "$github_username" '.[$gh_user] // empty')
 
             if [ -n "$slack_user_id" ]; then
               # Format as proper Slack mention using User ID
@@ -69,7 +69,9 @@ jobs:
 
           # Get PR author's Slack mention
           PR_AUTHOR_SLACK=$(get_slack_id "${{ github.event.pull_request.user.login }}")
-          echo "PR_AUTHOR_SLACK=$PR_AUTHOR_SLACK" >> "$GITHUB_ENV"
+          echo "PR_AUTHOR_SLACK<<EOF" >> "$GITHUB_ENV"
+          echo "$PR_AUTHOR_SLACK" >> "$GITHUB_ENV"
+          echo "EOF" >> "$GITHUB_ENV"
 
           # Process reviewers
           SLACK_MENTIONS=""
@@ -87,9 +89,11 @@ jobs:
             done
           fi
 
-          # Trim extra whitespace and store result
+          # Trim extra whitespace and store result without logging
           SLACK_MENTIONS=$(echo "$SLACK_MENTIONS" | xargs)
-          echo "SLACK_MENTIONS=$SLACK_MENTIONS" >> "$GITHUB_ENV"
+          echo "SLACK_MENTIONS<<EOF" >> "$GITHUB_ENV"
+          echo "$SLACK_MENTIONS" >> "$GITHUB_ENV"
+          echo "EOF" >> "$GITHUB_ENV"
 
       - name: Get Changed Files
         id: files
