@@ -1,4 +1,4 @@
-name: Code Review Notification
+name: Team Code Review Notification
 
 on:
   pull_request:
@@ -12,7 +12,7 @@ jobs:
   notify-slack:
     runs-on: ubuntu-latest
     # Charting team's GitHub usernames, this can be modified as the team grows
-    if: contains(fromJson('["janetxinli", "susanesho", "jeffcstock", "senaga-velupillai-jane", "preston-at-jane", "melissa-jane-app", "funmionitestbot"]'), github.event.pull_request.user.login)
+    if: contains(fromJson('["susanesho", "funmionitestbot"]'), github.event.pull_request.user.login)
     steps:
       - uses: actions/checkout@v4
         with:
@@ -128,6 +128,23 @@ jobs:
                     "type": "mrkdwn",
                     "text": ${{ toJSON(env.PR_DETAILS) }}
                   }
+                },
+                {
+                  "type": "actions",
+                  "elements": [
+                    {
+                      "type": "button",
+                      "text": {
+                        "type": "plain_text",
+                        "text": "View Pull Request",
+                        "emoji": true
+                      },
+                      "url": ${{ toJSON(env.PR_URL) }},
+                      "style": "primary"
+                    }
+                  ]
                 }
-              ]
+              ],
+              "unfurl_links": false,
+              "unfurl_media": true
             }
