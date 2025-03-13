@@ -69,11 +69,7 @@ jobs:
 
           # Get PR author's Slack mention
           PR_AUTHOR_SLACK=$(get_slack_id "${{ github.event.pull_request.user.login }}")
-           {
-            echo "PR_AUTHOR_SLACK<<EOF"
-            echo "$PR_AUTHOR_SLACK"
-            echo "EOF"
-          } >> "$GITHUB_ENV"
+          echo "PR_AUTHOR_SLACK=$PR_AUTHOR_SLACK" >> "$GITHUB_ENV"
 
           # Process reviewers
           SLACK_MENTIONS=""
@@ -93,11 +89,7 @@ jobs:
 
           # Trim extra whitespace and store result without logging
           SLACK_MENTIONS=$(echo "$SLACK_MENTIONS" | xargs)
-           {
-            echo "PR_AUTHOR_SLACK<<EOF"
-            echo "$PR_AUTHOR_SLACK"
-            echo "EOF"
-          } >> "$GITHUB_ENV"
+          echo "SLACK_MENTIONS=$SLACK_MENTIONS" >> "$GITHUB_ENV"
 
       - name: Get Changed Files
         id: files
