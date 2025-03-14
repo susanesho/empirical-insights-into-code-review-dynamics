@@ -35,6 +35,8 @@ jobs:
       - name: Look up Slack Users
         id: slack-users
         shell: bash
+        env:
+          GITHUB_SLACK_MAPPING: ${{ secrets.CHARTING_SLACK_MAPPING }}
         run: |
           get_slack_id() {
             local github_username="$1"
@@ -45,8 +47,7 @@ jobs:
 
             # Get Slack user ID from secret mapping
             local slack_user_id
-            slack_user_id=$(echo '${{ secrets.CHARTING_SLACK_MAPPING }}' | jq -r --arg gh_user "$github_username" '.[$gh_user] // empty')
-
+            slack_user_id=$(echo "$GITHUB_SLACK_MAPPING" | jq -r --arg gh_user "$github_username" '.[$gh_user] // empty')
             if [ -n "$slack_user_id" ]; then
               # Format as proper Slack mention using User ID
               echo "<@$slack_user_id>"
