@@ -21,22 +21,11 @@ jobs:
       - name: Get PR Details
         id: pr-details
         run: |
-          {
-            echo "PR_TITLE<<EOF"
-            echo "${{ github.event.pull_request.title }}"
-            echo "EOF"
-
-            echo "PR_BODY<<EOF"
-            echo "${{ github.event.pull_request.body }}"
-            echo "EOF"
-
-            echo "PR_URL=${{ github.event.pull_request.html_url }}"
-            echo "PR_AUTHOR=${{ github.event.pull_request.user.login }}"
-
-            echo "PR_REQUESTED_REVIEWERS<<EOF"
-            echo '${{ toJSON(github.event.pull_request.requested_reviewers) }}' | jq -r '.[].login' | paste -sd "," -
-            echo "EOF"
-          } >> "$GITHUB_ENV"
+          echo "PR_TITLE=$(echo "${{ github.event.pull_request.title }}" | tr '\n' ' ')" >> $GITHUB_ENV
+          echo "PR_BODY=$(echo "${{ github.event.pull_request.body }}" | tr '\n' ' ')" >> $GITHUB_ENV
+          echo "PR_URL=${{ github.event.pull_request.html_url }}" >> $GITHUB_ENV
+          echo "PR_AUTHOR=${{ github.event.pull_request.user.login }}" >> $GITHUB_ENV
+          echo "PR_REQUESTED_REVIEWERS=$(echo '${{ toJSON(github.event.pull_request.requested_reviewers) }}' | jq -r '.[].login' | paste -sd "," -)" >> $GITHUB_ENV
 
       - name: Install jq
         run: |
@@ -97,10 +86,7 @@ jobs:
           HEAD_SHA="${{ github.event.pull_request.head.sha }}"
           CHANGED_FILES=$(git diff --name-only $BASE_SHA $HEAD_SHA)
           STATS=$(git diff --shortstat $BASE_SHA $HEAD_SHA)
-          echo "CHANGED_FILES<<EOF" >> $GITHUB_ENV
-          echo "$CHANGED_FILES" >> $GITHUB_ENV
-          echo "EOF" >> $GITHUB_ENV
-          echo "DIFF_STATS=$STATS" >> $GITHUB_ENV
+           echo "CHANGED_FILES=$(echo "$CHANGED_FILES" | tr '\n' ' ')" >> $GITHUB_ENV
 
       - name: Post to Slack
         uses: slackapi/slack-github-action@v1.24.0
