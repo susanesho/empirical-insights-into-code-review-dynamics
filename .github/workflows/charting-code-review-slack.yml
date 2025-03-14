@@ -21,22 +21,11 @@ jobs:
       - name: Get PR Details
         id: pr-details
         run: |
-          {
-            echo "PR_TITLE<<EOF"
-            echo "${{ github.event.pull_request.title }}"
-            echo "EOF"
-
-            echo "PR_BODY<<EOF"
-            echo "${{ github.event.pull_request.body }}"
-            echo "EOF"
-
-            echo "PR_URL=${{ github.event.pull_request.html_url }}"
-            echo "PR_AUTHOR=${{ github.event.pull_request.user.login }}"
-
-            echo "PR_REQUESTED_REVIEWERS<<EOF"
-            echo '${{ toJSON(github.event.pull_request.requested_reviewers) }}' | jq -r '.[].login' | paste -sd "," -
-            echo "EOF"
-          } >> "$GITHUB_ENV"
+          echo "PR_TITLE=$(echo "${{ github.event.pull_request.title }}" | tr '\n' ' ')" >> $GITHUB_ENV
+          echo "PR_BODY=$(echo "${{ github.event.pull_request.body }}" | tr '\n' ' ')" >> $GITHUB_ENV
+          echo "PR_URL=${{ github.event.pull_request.html_url }}" >> $GITHUB_ENV
+          echo "PR_AUTHOR=${{ github.event.pull_request.user.login }}" >> $GITHUB_ENV
+          echo "PR_REQUESTED_REVIEWERS=$(echo '${{ toJSON(github.event.pull_request.requested_reviewers) }}' | jq -r '.[].login' | paste -sd "," -)" >> $GITHUB_ENV
 
       - name: Install jq
         run: |
@@ -45,6 +34,9 @@ jobs:
 
       - name: Look up Slack Users
         id: slack-users
+        shell: bash
+        env:
+          GITHUB_SLACK_MAPPING: ${{ secrets.CHARTING_SLACK_MAPPING }}
         run: |
           get_slack_id() {
             local github_username="$1"
@@ -55,8 +47,7 @@ jobs:
 
             # Get Slack user ID from secret mapping
             local slack_user_id
-            slack_user_id=$(echo '${{ secrets.CHARTING_SLACK_MAPPING }}' | jq -r --arg gh_user "$github_username" '.[$gh_user] // empty')
-
+            slack_user_id=$(echo "$GITHUB_SLACK_MAPPING" | jq -r --arg gh_user "$github_username" '.[$gh_user] // empty')
             if [ -n "$slack_user_id" ]; then
               # Format as proper Slack mention using User ID
               echo "<@$slack_user_id>"
@@ -97,10 +88,7 @@ jobs:
           HEAD_SHA="${{ github.event.pull_request.head.sha }}"
           CHANGED_FILES=$(git diff --name-only $BASE_SHA $HEAD_SHA)
           STATS=$(git diff --shortstat $BASE_SHA $HEAD_SHA)
-          echo "CHANGED_FILES<<EOF" >> $GITHUB_ENV
-          echo "$CHANGED_FILES" >> $GITHUB_ENV
-          echo "EOF" >> $GITHUB_ENV
-          echo "DIFF_STATS=$STATS" >> $GITHUB_ENV
+           echo "CHANGED_FILES=$(echo "$CHANGED_FILES" | tr '\n' ' ')" >> $GITHUB_ENV
 
       - name: Post to Slack
         uses: slackapi/slack-github-action@v1.24.0
