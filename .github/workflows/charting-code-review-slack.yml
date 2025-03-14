@@ -64,8 +64,8 @@ jobs:
           # Process reviewers
           SLACK_MENTIONS=""
           if [ -n "$PR_REQUESTED_REVIEWERS" ]; then
-            # Split the comma-separated list into an array
-            IFS=',' read -r -a REVIEWERS_ARRAY <<< "$PR_REQUESTED_REVIEWERS"
+            # Read the comma-separated list into an array
+            IFS=',' read -ra REVIEWERS_ARRAY <<< "$PR_REQUESTED_REVIEWERS"
 
             for reviewer in "${REVIEWERS_ARRAY[@]}"; do
               # Trim whitespace
@@ -88,7 +88,7 @@ jobs:
           HEAD_SHA="${{ github.event.pull_request.head.sha }}"
           CHANGED_FILES=$(git diff --name-only $BASE_SHA $HEAD_SHA)
           STATS=$(git diff --shortstat $BASE_SHA $HEAD_SHA)
-          echo "CHANGED_FILES=$(echo "$CHANGED_FILES" | tr '\n' ' ')" >> $GITHUB_ENV
+           echo "CHANGED_FILES=$(echo "$CHANGED_FILES" | tr '\n' ' ')" >> $GITHUB_ENV
 
       - name: Post to Slack
         uses: slackapi/slack-github-action@v1.24.0
